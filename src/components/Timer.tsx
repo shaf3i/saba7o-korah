@@ -11,6 +11,15 @@ interface TimerProps {
   onNewRound: () => void;
 }
 
+interface ConfettiOptions {
+  startVelocity?: number;
+  spread?: number;
+  particleCount?: number;
+  origin?: { x?: number; y?: number };
+  decay?: number;
+  scalar?: number;
+}
+
 export const Timer = ({
   duration,
   onComplete,
@@ -30,7 +39,7 @@ export const Timer = ({
       origin: { y: 0.7 },
     };
 
-    function fire(particleRatio: number, opts: any) {
+    function fire(particleRatio: number, opts: ConfettiOptions) {
       confetti({
         ...defaults,
         ...opts,

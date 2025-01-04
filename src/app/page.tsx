@@ -17,9 +17,8 @@ export default function Home() {
     setShowTimer(true);
   };
 
-  const handleTimerComplete = (playerName: string) => {
-    // Remove the automatic hiding of the player name
-    // The user will now control when to start a new round
+  const handleTimerComplete = () => {
+    // Empty function since we're handling the timer end with onNewRound
   };
 
   const handleNewRound = () => {

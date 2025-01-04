@@ -9,6 +9,8 @@ interface Team {
   score: number;
 }
 
+type IntervalID = ReturnType<typeof setInterval>;
+
 export default function TeamManager() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [showWinner, setShowWinner] = useState(false);
@@ -56,7 +58,7 @@ export default function TeamManager() {
       return Math.random() * (max - min) + min;
     }
 
-    const interval: any = setInterval(function () {
+    const interval: IntervalID = setInterval(function () {
       const timeLeft = animationEnd - Date.now();
 
       if (timeLeft <= 0) {
