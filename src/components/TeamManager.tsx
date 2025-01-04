@@ -1,125 +1,214 @@
 "use client";
 
 import { useState } from "react";
+import confetti from "canvas-confetti";
+import styles from "./TeamManager.module.css";
 
 interface Team {
-  id: number;
   name: string;
   score: number;
 }
 
 export default function TeamManager() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [newTeamName, setNewTeamName] = useState<string>("");
-  const [winner, setWinner] = useState<Team | null>(null);
+  const [showWinner, setShowWinner] = useState(false);
+  const [winningTeam, setWinningTeam] = useState<Team | null>(null);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [isAddingTeam, setIsAddingTeam] = useState(false);
 
-  const addTeam = () => {
-    if (!newTeamName.trim()) return;
-
-    const newTeam: Team = {
-      id: teams.length + 1,
-      name: newTeamName.trim(),
-      score: 0,
-    };
-    setTeams([...teams, newTeam]);
-    setNewTeamName("");
-  };
-
-  const updateScore = (teamId: number, points: number) => {
+  const updateScore = (index: number, increment: boolean) => {
     setTeams(
-      teams.map((team) =>
-        team.id === teamId ? { ...team, score: team.score + points } : team
-      )
+      teams.map((team, i) => {
+        if (i === index) {
+          return { ...team, score: team.score + (increment ? 1 : -1) };
+        }
+        return team;
+      })
     );
-    setWinner(null);
   };
 
-  const showWinner = () => {
-    if (teams.length === 0) return;
-
-    const highestScore = Math.max(...teams.map((team) => team.score));
-    const winners = teams.filter((team) => team.score === highestScore);
-
-    if (winners.length === 1) {
-      setWinner(winners[0]);
-    } else {
-      setWinner({
-        id: 0,
-        name: "Tie between " + winners.map((w) => w.name).join(" and "),
-        score: highestScore,
-      });
+  const handleAddTeam = () => {
+    if (newTeamName.trim()) {
+      setTeams([...teams, { name: newTeamName.trim(), score: 0 }]);
+      setNewTeamName("");
+      setIsAddingTeam(false);
     }
   };
 
-  return (
-    <section className="p-4 border border-gray-700 rounded-lg bg-gray-800">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">Teams</h2>
-        {winner && (
-          <div className="flex items-center">
-            <span className="text-purple-400 mr-2">Winner:</span>
-            <span className="text-white font-semibold">{winner.name}</span>
-            <span className="text-purple-400 ml-2">({winner.score})</span>
-          </div>
-        )}
-      </div>
+  const handleRemoveTeam = (index: number) => {
+    setTeams(teams.filter((_, i) => i !== index));
+  };
 
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={newTeamName}
-          onChange={(e) => setNewTeamName(e.target.value)}
-          placeholder="Enter team name"
-          className="p-2 border border-gray-600 rounded flex-1 bg-gray-700 text-white placeholder-gray-400"
-        />
+  const fireWinnerCelebration = () => {
+    // Find the winning team
+    const winner = teams.reduce((prev, current) =>
+      prev.score > current.score ? prev : current
+    );
+    setWinningTeam(winner);
+    setShowWinner(true);
+
+    // Create multiple firework effects
+    const duration = 15 * 1000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: any = setInterval(function () {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+
+      // Since particles fall down, start a bit higher than random
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+
+    // Add some stars
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      shapes: ["star"],
+      colors: ["FFE15D", "FFB72B", "FF9EAA"],
+    });
+
+    // Try to play celebration sound, but don't break if file is missing
+    try {
+      const audio = new Audio("/sounds/winner.mp3");
+      audio.volume = 0.8;
+      audio.play().catch((error) => {
+        console.log("Audio playback failed:", error);
+      });
+    } catch (error) {
+      console.log("Error creating audio:", error);
+    }
+
+    // Hide winner after some time
+    setTimeout(() => {
+      setShowWinner(false);
+      setWinningTeam(null);
+    }, 15000);
+  };
+
+  return (
+    <div className="p-4 border border-gray-700 rounded-lg bg-gray-800">
+      <h2 className="text-xl font-bold text-white mb-4">Teams</h2>
+      <div className="space-y-4">
+        {teams.map((team, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between p-3 bg-gray-700 rounded-lg group"
+          >
+            <span className="text-white font-medium">{team.name}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateScore(index, false)}
+                className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 
+                         transition-colors disabled:opacity-50"
+                disabled={team.score <= 0}
+              >
+                -
+              </button>
+              <span className="text-white min-w-[2rem] text-center font-bold">
+                {team.score}
+              </span>
+              <button
+                onClick={() => updateScore(index, true)}
+                className="px-2 py-1 bg-green-500 text-white rounded 
+                         hover:bg-green-600 transition-colors"
+              >
+                +
+              </button>
+              <button
+                onClick={() => handleRemoveTeam(index)}
+                className="opacity-0 group-hover:opacity-100 ml-2 px-2 py-1 
+                         bg-red-500 text-white rounded hover:bg-red-600 
+                         transition-all"
+                title="Remove Team"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {isAddingTeam ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              placeholder="Enter team name"
+              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 
+                       rounded-md text-white focus:outline-none focus:ring-2 
+                       focus:ring-blue-500"
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleAddTeam();
+                }
+              }}
+            />
+            <button
+              onClick={handleAddTeam}
+              className="px-4 py-2 bg-blue-500 text-white rounded 
+                       hover:bg-blue-600 transition-colors"
+            >
+              Add
+            </button>
+            <button
+              onClick={() => {
+                setIsAddingTeam(false);
+                setNewTeamName("");
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded 
+                       hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAddingTeam(true)}
+            className="w-full py-2 bg-blue-500 text-white rounded 
+                     hover:bg-blue-600 transition-colors"
+          >
+            Add Team
+          </button>
+        )}
+
         <button
-          onClick={addTeam}
-          disabled={!newTeamName.trim()}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors disabled:bg-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+          onClick={fireWinnerCelebration}
+          className="w-full mt-4 py-2 bg-yellow-500 text-gray-900 rounded-lg 
+                   font-bold hover:bg-yellow-400 transition-colors"
         >
-          Add Team
+          Show Winner
         </button>
       </div>
 
-      {/* Scrollable teams list */}
-      <div className="max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-        <div className="space-y-4">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              className="p-4 border border-gray-700 rounded bg-gray-700"
-            >
-              <h3 className="font-semibold text-white">{team.name}</h3>
-              <p className="my-2 text-gray-300">Score: {team.score}</p>
-              <div className="space-x-2">
-                <button
-                  onClick={() => updateScore(team.id, 1)}
-                  className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors"
-                >
-                  +1
-                </button>
-                <button
-                  onClick={() => updateScore(team.id, -1)}
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
-                >
-                  -1
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {teams.length > 0 && (
-        <div className="mt-4">
-          <button
-            onClick={showWinner}
-            className="w-full bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors"
-          >
-            Show Winner
-          </button>
+      {showWinner && winningTeam && (
+        <div className={styles.winnerOverlay}>
+          <div className={styles.winnerContent}>
+            <h3 className={styles.winnerTitle}>🏆 Champion! 🏆</h3>
+            <div className={styles.winnerName}>{winningTeam.name}</div>
+            <div className={styles.winnerScore}>Score: {winningTeam.score}</div>
+          </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

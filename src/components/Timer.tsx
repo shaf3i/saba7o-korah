@@ -1,94 +1,150 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
+import styles from "./Timer.module.css";
+import confetti from "canvas-confetti";
 
-export default function Timer() {
-  const [timer, setTimer] = useState<number>(0);
-  const [initialTime, setInitialTime] = useState<number>(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+interface TimerProps {
+  duration: number;
+  onComplete: (playerName: string) => void;
+  playerName: string;
+  onNewRound: () => void;
+}
 
-  const startTimer = () => {
-    if (timer > 0) {
-      setInitialTime(timer);
-      setIsTimerRunning(true);
+export const Timer = ({
+  duration,
+  onComplete,
+  playerName,
+  onNewRound,
+}: TimerProps) => {
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [isComplete, setIsComplete] = useState(false);
+  const [dashArray, setDashArray] = useState("283");
+  const FULL_DASH_ARRAY = 283;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const fireCelebration = () => {
+    // Fire multiple confetti bursts
+    const count = 200;
+    const defaults = {
+      origin: { y: 0.7 },
+    };
+
+    function fire(particleRatio: number, opts: any) {
+      confetti({
+        ...defaults,
+        ...opts,
+        particleCount: Math.floor(count * particleRatio),
+      });
     }
-  };
 
-  const stopTimer = useCallback(() => {
-    setIsTimerRunning(false);
-    playTimerEndSound();
-  }, []);
+    fire(0.25, {
+      spread: 26,
+      startVelocity: 55,
+    });
 
-  const resetTimer = () => {
-    setIsTimerRunning(false);
-    setTimer(initialTime);
-  };
+    fire(0.2, {
+      spread: 60,
+    });
 
-  const playTimerEndSound = () => {
-    const audio = new Audio("/sounds/timer-end.mp3");
-    audio.play();
+    fire(0.35, {
+      spread: 100,
+      decay: 0.91,
+      scalar: 0.8,
+    });
+
+    fire(0.1, {
+      spread: 120,
+      startVelocity: 25,
+      decay: 0.92,
+      scalar: 1.2,
+    });
+
+    fire(0.1, {
+      spread: 120,
+      startVelocity: 45,
+    });
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    // Create audio element once when component mounts
+    audioRef.current = new Audio("/sounds/timer-end.mp3");
+    audioRef.current.volume = 1;
 
-    if (isTimerRunning && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prevTime) => {
-          if (prevTime <= 1) {
-            stopTimer();
-            return 0;
-          }
-          return prevTime - 1;
+    // Cleanup when component unmounts
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          const newTime = prev - 1;
+          const rawTimeFraction = newTime / duration;
+          const timeFraction =
+            rawTimeFraction - (1 / duration) * (1 - rawTimeFraction);
+          const circleDasharray = `${(timeFraction * FULL_DASH_ARRAY).toFixed(
+            0
+          )} 283`;
+          setDashArray(circleDasharray);
+          return newTime;
         });
       }, 1000);
-    }
 
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timer, stopTimer]);
+      return () => clearInterval(timer);
+    } else if (!isComplete) {
+      setIsComplete(true);
+      // Play the sound when timer completes
+      if (audioRef.current) {
+        audioRef.current.play().catch((error) => {
+          console.log("Error playing audio:", error);
+        });
+      }
+      onComplete(playerName);
+      fireCelebration(); // Fire celebration effects
+    }
+  }, [timeLeft, isComplete, duration, onComplete, playerName]);
 
   return (
-    <section className="p-4 border border-gray-200 rounded-lg">
-      <h2 className="text-xl font-bold mb-4">Timer</h2>
-      <div className="space-y-2">
-        <input
-          type="number"
-          value={timer || ""}
-          onChange={(e) => {
-            const value = e.target.value === "" ? 0 : parseInt(e.target.value);
-            setTimer(isNaN(value) ? 0 : value);
-          }}
-          min="0"
-          className="p-2 border border-gray-300 rounded mr-2 text-gray-900"
-          disabled={isTimerRunning}
-        />
-        <div className="space-x-2">
-          <button
-            onClick={startTimer}
-            disabled={timer === 0 || isTimerRunning}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed"
-          >
-            Start
-          </button>
-          <button
-            onClick={stopTimer}
-            disabled={!isTimerRunning}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed"
-          >
-            Stop
-          </button>
-          <button
-            onClick={resetTimer}
-            disabled={timer === initialTime || isTimerRunning}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
-          >
-            Reset
+    <div className={styles.timerContainer}>
+      {!isComplete ? (
+        <div className={styles.baseTimer}>
+          <svg className={styles.baseTimerSvg} viewBox="0 0 100 100">
+            <circle
+              className={styles.baseTimerPathBackground}
+              cx="50"
+              cy="50"
+              r="45"
+            />
+            <circle
+              className={styles.baseTimerPathRemaining}
+              cx="50"
+              cy="50"
+              r="45"
+              style={{
+                strokeDasharray: dashArray,
+              }}
+            />
+          </svg>
+          <div className={styles.baseTimerLabel}>
+            {Math.floor(timeLeft / 60)}:
+            {(timeLeft % 60).toString().padStart(2, "0")}
+          </div>
+        </div>
+      ) : (
+        <div className={styles.playerReveal}>
+          <div className={styles.celebrationText}>🎉 Selected Player 🎯</div>
+          <h2>{playerName}</h2>
+          <button onClick={onNewRound} className={styles.newRoundButton}>
+            Start New Round
           </button>
         </div>
-        <div className="mt-2 text-lg font-semibold">
-          Time remaining: {timer} seconds
-        </div>
-      </div>
-    </section>
+      )}
+    </div>
   );
-}
+};

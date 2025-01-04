@@ -1,9 +1,32 @@
-import Timer from "@/components/Timer";
+"use client";
+import { useState } from "react";
+import { Timer } from "@/components/Timer";
 import AudioRecorder from "@/components/AudioRecorder";
 import TeamManager from "@/components/TeamManager";
 import PlayerSelector from "@/components/PlayerSelector";
+import TimerControls from "@/components/TimerControls";
 
-export default function GamePage() {
+export default function Home() {
+  const [showTimer, setShowTimer] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState("");
+  const [timerDuration, setTimerDuration] = useState(60);
+
+  const handleStartTimer = (player: string, duration: number) => {
+    setSelectedPlayer(player);
+    setTimerDuration(duration);
+    setShowTimer(true);
+  };
+
+  const handleTimerComplete = (playerName: string) => {
+    // Remove the automatic hiding of the player name
+    // The user will now control when to start a new round
+  };
+
+  const handleNewRound = () => {
+    setShowTimer(false);
+    setSelectedPlayer("");
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Fixed Header */}
@@ -13,6 +36,16 @@ export default function GamePage() {
         </div>
       </header>
 
+      {/* Timer Overlay */}
+      {showTimer && (
+        <Timer
+          duration={timerDuration}
+          onComplete={handleTimerComplete}
+          playerName={selectedPlayer}
+          onNewRound={handleNewRound}
+        />
+      )}
+
       {/* Main Content - Scrollable */}
       <main className="flex-grow mt-[72px] mb-[60px]">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -21,11 +54,14 @@ export default function GamePage() {
             <div className="space-y-6 lg:col-span-2">
               {/* Timer and Audio Row */}
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-                <Timer />
+                <TimerControls
+                  onStartTimer={handleStartTimer}
+                  selectedPlayer={selectedPlayer}
+                />
                 <AudioRecorder />
               </div>
               {/* Player Selection */}
-              <PlayerSelector />
+              <PlayerSelector onPlayerSelect={setSelectedPlayer} />
             </div>
 
             {/* Teams Section */}
