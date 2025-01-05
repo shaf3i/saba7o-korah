@@ -42,6 +42,12 @@ export default function TeamManager() {
   };
 
   const fireWinnerCelebration = () => {
+    // Check if there are any teams
+    if (teams.length === 0) {
+      alert("Please add teams first!");
+      return;
+    }
+
     // Find the winning team
     const winner = teams.reduce((prev, current) =>
       prev.score > current.score ? prev : current

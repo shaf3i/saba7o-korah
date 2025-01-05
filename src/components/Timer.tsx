@@ -31,6 +31,8 @@ export const Timer = ({
   const [dashArray, setDashArray] = useState("283");
   const FULL_DASH_ARRAY = 283;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isScratched, setIsScratched] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const fireCelebration = () => {
     // Fire multiple confetti bursts
@@ -119,6 +121,53 @@ export const Timer = ({
     }
   }, [timeLeft, isComplete, duration, onComplete, playerName]);
 
+  const handleScratch = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x =
+      (e as React.TouchEvent<HTMLCanvasElement>).touches?.[0]?.clientX ||
+      (e as React.MouseEvent<HTMLCanvasElement>).clientX;
+    const y =
+      (e as React.TouchEvent<HTMLCanvasElement>).touches?.[0]?.clientY ||
+      (e as React.MouseEvent<HTMLCanvasElement>).clientY;
+
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(x - rect.left, y - rect.top, 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Check if enough is scratched
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    let transparentPixels = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) transparentPixels++;
+    }
+    if (transparentPixels / (pixels.length / 4) > 0.5) {
+      setIsScratched(true);
+    }
+  };
+
+  useEffect(() => {
+    if (isComplete && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.fillStyle = "#374151";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [isComplete]);
+
   return (
     <div className={styles.timerContainer}>
       {!isComplete ? (
@@ -147,8 +196,18 @@ export const Timer = ({
         </div>
       ) : (
         <div className={styles.playerReveal}>
-          <div className={styles.celebrationText}>🎉 Selected Player 🎯</div>
-          <h2>{playerName}</h2>
+          <div className={styles.celebrationText}>🎉 Scratch to Reveal! 🎯</div>
+          <div className={styles.scratchCard}>
+            <div className={styles.playerName}>{playerName}</div>
+            {!isScratched && (
+              <canvas
+                ref={canvasRef}
+                className={styles.scratchCanvas}
+                onMouseMove={handleScratch}
+                onTouchMove={handleScratch}
+              />
+            )}
+          </div>
           <button onClick={onNewRound} className={styles.newRoundButton}>
             Start New Round
           </button>
